@@ -1,0 +1,70 @@
+## INFO ##
+## INFO ##
+
+# Include Tuprules.tup
+include tuplet/Tuprules.tup
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+CPPPATH += -I$(INCLUDE_DIR)
+LIBPATH += -L$(LIBRARY_DIR)
+lib      = psychicpaper
+
+
+#------------------------------------------------------------------------------#
+# Analyze sources
+: foreach $(SOURCE_DIR)/*.c |> !analyze |>
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Compile objects
+: foreach $(SOURCE_DIR)/*.c                                                    \
+    |> !to_obj                                                                 \
+    |> $(BUILD_DIR)/%B.$(OBJ_EXT) {lib_build}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Build shared library
+: {lib_build}                                                                  \
+    |> !to_lib $(LIBS)                                                         \
+    |> $(LIBRARY_DIR)/lib$(lib).$(LIB_EXT) {lib}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Build static library
+: {lib_build}                                                                  \
+    |> !to_arc                                                                 \
+    |> $(LIBRARY_DIR)/lib$(lib).$(ARC_EXT) {arc}
+
+
+
+#------------------------------------------------------------------------------#
+# Analyze sources
+: foreach samples/*.c |> !analyze |>
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Compile objects
+: foreach samples/*.c                                                          \
+    |> !to_obj                                                                 \
+    |> $(BUILD_DIR)/samples/%B.$(OBJ_EXT) {bin_build}
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Build binary
+LIBS += -l$(lib)
+: foreach {bin_build} | {lib}                                                  \
+    |> !to_bin $(LIBS)                                                         \
+    |> $(BINARY_DIR)/samples/%B$(BIN_EXT) {bin}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Run test binary
+ENV_VARS = LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(LIBRARY_DIR)
+: foreach {bin} |> !run_it |>
+
+
+
+#------------------------------------------------------------------------------#
+# Debug headers and sources (pre-processour output)
+ifdef DEVEL
+    #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    : foreach $(SOURCE_DIR)/*.c $(INCLUDE_DIR)/psychicpaper/*.h                \
+        |> !to_cpp                                                             \
+        |> $(BUILD_DIR)/cpp-out/%B.pp.%e
+
+    #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    : foreach samples/*.c                                                      \
+        |> !to_cpp                                                             \
+        |> $(BUILD_DIR)/cpp-out/samples/%B.pp.%e
+endif
